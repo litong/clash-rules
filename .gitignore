@@ -1,0 +1,11 @@
+# 忽略文件
+sync_temp/
+sync_report.md
+.DS_Store
+*.log
+node_modules/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

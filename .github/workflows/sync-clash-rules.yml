@@ -1,0 +1,128 @@
+name: Sync Clash Rules
+
+on:
+  schedule:
+    # 每天凌晨2点运行
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      sync_folders:
+        description: '要同步的文件夹 (用逗号分隔)'
+        required: false
+        default: ''
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout target repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        
+    - name: Clone source repository
+      run: |
+        git clone --depth 1 https://github.com/blackmatrix7/ios_rule_script.git /tmp/ios_rule_script
+        
+    - name: Read sync configuration
+      id: config
+      run: |
+        if [ -f "sync-config.json" ]; then
+          echo "folders=$(cat sync-config.json | jq -c '.folders')" >> $GITHUB_OUTPUT
+        else
+          echo 'folders=["rules"]' >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Sync specified folders
+      run: |
+        # 创建工作目录
+        mkdir -p sync_temp
+        
+        # 获取要同步的文件夹列表
+        if [ -n "${{ github.event.inputs.sync_folders }}" ]; then
+          FOLDERS=$(echo "${{ github.event.inputs.sync_folders }}" | tr ',' '\n')
+        else
+          FOLDERS=$(echo '${{ steps.config.outputs.folders }}' | jq -r '.[]')
+        fi
+        
+        echo "要同步的文件夹:"
+        echo "$FOLDERS"
+        
+        # 同步每个文件夹
+        for folder in $FOLDERS; do
+          echo "正在同步文件夹: $folder"
+          
+          # 检查源文件夹是否存在
+          if [ -d "/tmp/ios_rule_script/rule/Clash/$folder" ]; then
+            # 创建目标目录
+            mkdir -p "$(dirname "rules/$folder")"
+            
+            # 复制文件夹
+            cp -r "/tmp/ios_rule_script/rule/Clash/$folder" "rules/$folder"
+            
+            echo "✅ 已同步: $folder"
+          else
+            echo "❌ 源文件夹不存在: /tmp/ios_rule_script/rule/Clash/$folder"
+          fi
+        done
+        
+        # 生成同步报告
+        cat > sync_report.md << 'EOF'
+        # Clash 规则同步报告
+        
+        同步时间: $(date '+%Y-%m-%d %H:%M:%S')
+        
+        ## 同步的文件夹
+        EOF
+        
+        for folder in $FOLDERS; do
+          if [ -d "$folder" ]; then
+            file_count=$(find "$folder" -type f | wc -l)
+            echo "- ✅ $folder ($file_count 个文件)" >> sync_report.md
+          else
+            echo "- ❌ $folder (同步失败)" >> sync_report.md
+          fi
+        done
+        
+        echo "" >> sync_report.md
+        echo "## 提交信息" >> sync_report.md
+        echo "- 源仓库: https://github.com/blackmatrix7/ios_rule_script" >> sync_report.md
+        echo "- 同步分支: master" >> sync_report.md
+        
+    - name: Commit and push changes
+      run: |
+        # 检查是否有变更
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "发现变更，开始提交..."
+          
+          # 添加所有变更
+          git add .
+          
+          # 创建提交
+          git commit -m "🔄 同步 Clash 规则 ($(date '+%Y-%m-%d %H:%M:%S'))
+          
+          - 自动同步自: https://github.com/blackmatrix7/ios_rule_script
+          - 同步文件夹: $(echo '${{ steps.config.outputs.folders }}' | jq -r '. | join(", ")')
+          
+          [skip ci]"
+          
+          # 推送到仓库
+          git push
+          
+          echo "✅ 变更已提交并推送"
+        else
+          echo "ℹ️ 没有检测到变更"
+        fi
+        
+    - name: Upload sync report
+      uses: actions/upload-artifact@v4
+      with:
+        name: sync-report-${{ github.run_number }}
+        path: sync_report.md
+        retention-days: 30

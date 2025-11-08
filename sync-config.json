@@ -1,0 +1,39 @@
+{
+  "folders": [
+    "YouTube",
+    "Netflix",
+    "Disney",
+    "HBO",
+    "AmazonPrimeVideo",
+    "Hulu",
+    "ViuTV",
+    "BiliBili",
+    "TikTok",
+    "GoogleFCM",
+    "OneDrive",
+    "Microsoft",
+    "Apple",
+    "AppleNews",
+    "Game",
+    "NetEaseMusic",
+    "Spotify",
+    "Bahamut",
+    "Advertising",
+    "Cloudflare",
+    "OpenAI",
+    "Claude",
+    "Gemini",
+    "China",
+    "Proxy",
+    "Global"
+  ],
+  "exclude_patterns": [
+    "*.md",
+    "*.yaml",
+    "*.txt",
+    ".git*"
+  ],
+  "sync_interval": "daily",
+  "source_repo": "https://github.com/blackmatrix7/ios_rule_script.git",
+  "source_branch": "master"
+}
